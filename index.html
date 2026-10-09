@@ -23,6 +23,9 @@ body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px
 .top .name{color:var(--muted);font-size:12px;margin-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw;display:inline-block;vertical-align:middle}
 .pick{display:inline-block;background:var(--accent);color:var(--accent-ink);font-weight:700;border-radius:8px;padding:9px 14px;font-size:14px;cursor:pointer;border:0;font-family:inherit}
 .pick input{display:none}
+.pick.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.picks{display:flex;flex-wrap:wrap;justify-content:center;align-items:center}
+.picks .pick{margin:4px}
 .stage{flex:1;min-height:0;position:relative;background:#000;display:flex;align-items:center;justify-content:center}
 video,canvas{max-width:100%;max-height:100%;width:100%;height:100%;object-fit:contain;display:block}
 .cap{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(18,20,23,.82);padding:16px;text-align:center}
@@ -71,7 +74,10 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 <div class="app">
   <div class="top">
     <div><h1 style="display:inline">シーク再生</h1><span class="name" id="fname"></span></div>
-    <label class="pick" id="pickTop" hidden>別の動画<input type="file" id="file2" accept="video/*"></label>
+    <span class="picks" id="pickTop" hidden>
+      <label class="pick">写真から<input type="file" id="file2" accept="video/*"></label>
+      <label class="pick alt">ファイルから<input type="file" id="file4"></label>
+    </span>
   </div>
 
   <div class="stage" id="stage">
@@ -85,8 +91,11 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
       <p><button id="capCancel">やめる</button></p>
     </div>
     <div class="empty" id="empty">
-      <label class="pick">動画を選ぶ<input type="file" id="file" accept="video/*"></label>
-      <p>ギャラリーや写真の中の動画を選んでください。<br>下のバーを指で動かすと、映像もその場所へ戻ったり進んだりします。<br>動画はこの端末の中で読むだけで、どこにも送信しません。</p>
+      <div class="picks">
+        <label class="pick">写真から選ぶ<input type="file" id="file" accept="video/*"></label>
+        <label class="pick alt">ファイルから選ぶ<input type="file" id="file3"></label>
+      </div>
+      <p>「写真から選ぶ」はギャラリーの動画、「ファイルから選ぶ」は内部ストレージやダウンロードのフォルダから選べます。<br>下のバーを指で動かすと、映像もその場所へ戻ったり進んだりします。<br>動画はこの端末の中で読むだけで、どこにも送信しません。</p>
     </div>
   </div>
 
@@ -569,11 +578,37 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   v.addEventListener('error', function(){
     enable(false);
     empty.hidden = false;
-    empty.querySelector('p').textContent = 'この動画はこのブラウザでは再生できませんでした。別の動画を選んでください。';
+    showPickError('この動画はこのブラウザでは再生できませんでした。別の動画を選んでください。');
   });
-  function onPick(){ load(this.files && this.files[0]); this.value = ''; }
+  function showPickError(msg){
+    if (smooth) exitSmooth(true);
+    v.removeAttribute('src');
+    enable(false);
+    fname.textContent = '';
+    pickTop.hidden = true;
+    empty.hidden = false;
+    empty.querySelector('p').textContent = msg;
+  }
+  var VIDEO_EXT = /\.(mp4|m4v|mov|webm|3gp|3g2|mkv|avi|ts|mpg|mpeg)$/i;
+  function isVideo(file){
+    if (file.type) return file.type.indexOf('video/') === 0 || VIDEO_EXT.test(file.name || '');
+    return VIDEO_EXT.test(file.name || '');
+  }
+  function onPick(){
+    var f = this.files && this.files[0];
+    this.value = '';
+    if (!f) return;
+    if (!isVideo(f)) {
+      if (capturing) capCancel = true;
+      showPickError('「' + (f.name || '選んだファイル') + '」は動画ではないか、このブラウザで再生できない形式です。別のファイルを選んでください。');
+      return;
+    }
+    load(f);
+  }
   document.getElementById('file').addEventListener('change', onPick);
   document.getElementById('file2').addEventListener('change', onPick);
+  document.getElementById('file3').addEventListener('change', onPick);
+  document.getElementById('file4').addEventListener('change', onPick);
 })();
 </script>
 </body></html>
